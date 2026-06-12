@@ -10,6 +10,10 @@ import {
 export type LimitResource = 'users' | 'contacts' | 'instances';
 export type FeatureFlag = 'isAiEnabled' | 'isFlowBuilderEnabled' | 'isCampaignsEnabled' | 'isTemplatesEnabled' | 'isVoiceCallsEnabled';
 
+// When a team has no paid plan, treat it as a generous free tier instead of
+// blocking — no one is forced to /pricing. Real plans, once assigned, take over.
+const FREE_TIER = { maxUsers: 9999, maxContacts: 9_999_999, maxInstances: 9999 };
+
 export async function enforceLimit(teamId: number, resource: LimitResource) {
   const team = await db.query.teams.findFirst({
     where: eq(teams.id, teamId),
@@ -18,11 +22,11 @@ export async function enforceLimit(teamId: number, resource: LimitResource) {
     },
   });
 
-  if (!team || !team.plan) {
-    throw new Error("Team has no active plan.");
+  if (!team) {
+    throw new Error("Team not found.");
   }
 
-  const plan = team.plan;
+  const plan = team.plan ?? FREE_TIER;
   let currentUsage = 0;
   let limit = 0;
   let resourceName = '';
@@ -58,7 +62,8 @@ export async function checkFeature(teamId: number, feature: FeatureFlag) {
     },
   });
 
-  if (!team || !team.plan) return false;
+  // No plan = free tier with all features unlocked (no paywall).
+  if (!team || !team.plan) return true;
 
   return team.plan[feature] === true;
 }

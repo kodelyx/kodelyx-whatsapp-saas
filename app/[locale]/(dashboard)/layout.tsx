@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, Suspense, useEffect } from 'react';
+import { useState, Suspense } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { LogOut, Settings, MessageCircle, Menu, X } from 'lucide-react';
@@ -126,18 +126,7 @@ function Header() {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const isHomePage = pathname === '/' || /^\/[a-z]{2}$/.test(pathname);
-  
-  const { data: team } = useSWR('/api/team', fetcher);
-
-  useEffect(() => {
-    if (team && typeof team === 'object' && 'id' in team && !team.planId) {
-      if (!isHomePage && !pathname.startsWith('/pricing')) {
-        router.push('/pricing');
-      }
-    }
-  }, [team, pathname, isHomePage, router]);
 
   if (isHomePage) {
     return (
