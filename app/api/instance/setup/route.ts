@@ -6,18 +6,19 @@ import { logActivity } from '@/lib/db/activity';
 import { enforceLimit } from '@/lib/limits';
 import { getMetaCloudConfig } from '@/lib/whatsapp/config';
 
-// Subscribe the app to the WABA, then set a phone-number-level webhook override.
+// Subscribe the app to the WABA, then set a WABA-level webhook override.
 // This is the two-step flow Meta requires: a plain subscribe must succeed before
 // the override call is allowed, otherwise Meta returns "(#100) ... must be subscribed".
+// The override is set at the WABA level (POST /{waba}/subscribed_apps with a body) —
+// the phone-number-level override is not supported on all accounts.
 async function configureWebhook(opts: {
   apiVersion: string;
   wabaId: string;
-  phoneNumberId: string;
   token: string;
   callbackUrl: string;
   verifyToken: string;
 }): Promise<{ subscribed: boolean; overridden: boolean; error?: string }> {
-  const { apiVersion, wabaId, phoneNumberId, token, callbackUrl, verifyToken } = opts;
+  const { apiVersion, wabaId, token, callbackUrl, verifyToken } = opts;
   const base = 'https://graph.facebook.com';
   try {
     // Step 1 — subscribe the app to the WhatsApp Business Account.
@@ -31,8 +32,8 @@ async function configureWebhook(opts: {
       return { subscribed: false, overridden: false, error: subJson?.error?.message || 'Failed to subscribe app to WABA' };
     }
 
-    // Step 2 — override the callback URL for this specific phone number.
-    const ovrRes = await fetch(`${base}/${apiVersion}/${phoneNumberId}/subscribed_apps`, {
+    // Step 2 — override the callback URL at the WABA level so its webhooks hit our endpoint.
+    const ovrRes = await fetch(`${base}/${apiVersion}/${wabaId}/subscribed_apps`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ override_callback_uri: callbackUrl, verify_token: verifyToken }),
@@ -150,7 +151,6 @@ export async function POST(request: Request) {
       webhook = await configureWebhook({
         apiVersion,
         wabaId,
-        phoneNumberId: metaPhoneNumberId,
         token: metaToken,
         callbackUrl,
         verifyToken,
