@@ -113,38 +113,82 @@ export default function GeneralPage() {
         {t('general_title')}
       </h1>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('account_info')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-4" action={formAction}>
-            <Suspense fallback={<AccountForm state={state} />}>
-              <AccountFormWithData state={state} />
-            </Suspense>
-            {state.error && (
-              <p className="text-destructive text-sm">{state.error}</p>
-            )}
-            {state.success && (
-              <p className="text-primary text-sm">{t('success_update')}</p>
-            )}
-            <Button
-              type="submit"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-              disabled={isPending}
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t('saving')}
-                </>
-              ) : (
-                t('save_changes')
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('account_info')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" action={formAction}>
+              <Suspense fallback={<AccountForm state={state} />}>
+                <AccountFormWithData state={state} />
+              </Suspense>
+              {state.error && (
+                <p className="text-destructive text-sm">{state.error}</p>
               )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              {state.success && (
+                <p className="text-primary text-sm">{t('success_update')}</p>
+              )}
+              <Button
+                type="submit"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                disabled={isPending}
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {t('saving')}
+                  </>
+                ) : (
+                  t('save_changes')
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <ThemeCard />
+      </div>
     </section>
+  );
+}
+
+function ThemeCard() {
+  const { useTheme } = require('next-themes');
+  const { theme, setTheme } = useTheme();
+
+  const themes = [
+    { value: 'light', label: 'Light', icon: '☀️' },
+    { value: 'dark', label: 'Dark', icon: '🌙' },
+    { value: 'system', label: 'System', icon: '💻' },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Appearance</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground mb-4">
+          Choose your preferred theme for the dashboard.
+        </p>
+        <div className="flex gap-3">
+          {themes.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setTheme(t.value)}
+              className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                theme === t.value
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-foreground/20'
+              }`}
+            >
+              <span className="text-2xl">{t.icon}</span>
+              <span className="text-sm font-medium">{t.label}</span>
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

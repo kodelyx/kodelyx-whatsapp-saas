@@ -82,7 +82,7 @@ export default function KanbanBoard() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (stagesData) {
+    if (stagesData && Array.isArray(stagesData)) {
         setStages([...stagesData].sort((a, b) => a.order - b.order));
     }
   }, [stagesData]);

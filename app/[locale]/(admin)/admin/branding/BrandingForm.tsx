@@ -46,10 +46,10 @@ export function BrandingForm({ branding }: BrandingFormProps) {
   async function onSubmit(data: BrandingFormValues) {
     const formData = new FormData();
     formData.append('name', data.name);
-    if (data.logo[0]) {
+    if (data.logo?.[0]) {
       formData.append('logo', data.logo[0]);
     }
-    if (data.favicon[0]) {
+    if (data.favicon?.[0]) {
       formData.append('favicon', data.favicon[0]);
     }
 

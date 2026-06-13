@@ -147,10 +147,12 @@ export default function AdminGatewaysPage() {
             >
               <CardContent className="p-0">
                 {}
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setExpandedGateway(isExpanded ? null : gw.value)}
-                  className="flex items-center gap-4 px-5 py-4 w-full text-left"
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpandedGateway(isExpanded ? null : gw.value); }}
+                  className="flex items-center gap-4 px-5 py-4 w-full text-left cursor-pointer"
                 >
                   <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-lg font-bold shrink-0">
                     {gw.value === 'stripe' ? 'S' : gw.value === 'razorpay' ? 'R' : <Banknote className="h-5 w-5 text-muted-foreground" />}
@@ -176,7 +178,7 @@ export default function AdminGatewaysPage() {
                     />
                   </div>
                   <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-                </button>
+                </div>
 
                 {}
                 {isExpanded && (

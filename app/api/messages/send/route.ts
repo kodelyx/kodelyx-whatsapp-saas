@@ -5,6 +5,7 @@ import { chats, messages, evolutionInstances } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { formatMessageForFrontend } from '@/lib/db/messages';
 import { sendTextViaProvider } from '@/lib/whatsapp/send-helpers';
+import { enforceMessaging } from '@/lib/limits';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Internal notes
+    // Internal notes skip plan checks
     if (isInternal) {
       let chatConditions = [
         eq(chats.teamId, team.id),
@@ -60,6 +61,9 @@ export async function POST(request: NextRequest) {
       await db.insert(messages).values(internalMessageData);
       return NextResponse.json(formatMessageForFrontend(internalMessageData));
     }
+
+    // Enforce messaging plan gate (free users can't send)
+    await enforceMessaging(team.id);
 
     // Find instance
     let activeInstance = null;

@@ -54,42 +54,36 @@ export default async function LocaleLayout({
   ]);
 
   return (
-    <html
-      lang={locale}
-      suppressHydrationWarning
-      className={`bg-background text-foreground ${manrope.className}`}
-    >
-      <body className="min-h-[100dvh] bg-background" suppressHydrationWarning>
-        <NextIntlClientProvider messages={messages}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="light"
-            enableSystem
-            disableTransitionOnChange
+    <>
+      <NextIntlClientProvider messages={messages}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SWRConfig
+            value={{
+              fallback: {
+                '/api/user': userData,
+                '/api/team': teamData,
+              },
+            }}
           >
-            <SWRConfig
-              value={{
-                fallback: {
-                  '/api/user': userData,
-                  '/api/team': teamData,
-                },
-              }}
-            >
-              <BrandingProvider branding={branding}>
-                <CallProviderWrapper>
-                  {children}
-                </CallProviderWrapper>
-              </BrandingProvider>
+            <BrandingProvider branding={branding}>
+              <CallProviderWrapper>
+                {children}
+              </CallProviderWrapper>
+            </BrandingProvider>
 
-              <Toaster
-                richColors
-                position="top-center"
-                theme="system"
-              />
-            </SWRConfig>
-          </ThemeProvider>
-        </NextIntlClientProvider>
-      </body>
-    </html>
+            <Toaster
+              richColors
+              position="top-center"
+              theme="system"
+            />
+          </SWRConfig>
+        </ThemeProvider>
+      </NextIntlClientProvider>
+    </>
   );
 }

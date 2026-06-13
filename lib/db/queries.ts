@@ -182,13 +182,27 @@ export async function getTeamForUser() {
               }
             }
           },
-          evolutionInstances: true
+          evolutionInstances: true,
+          plan: {
+            columns: {
+              id: true,
+              name: true,
+              amount: true,
+              maxMonthlyMessages: true,
+            }
+          }
         }
       }
     }
   });
 
-  return result?.team || null;
+  const team = result?.team || null;
+  if (!team) return null;
+
+  return {
+    ...team,
+    planName: team.plan?.name || 'Free',
+  };
 }
 
 export async function getUserMembership() {

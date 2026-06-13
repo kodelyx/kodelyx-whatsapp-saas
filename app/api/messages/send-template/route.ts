@@ -5,11 +5,15 @@ import { evolutionInstances, wabaTemplates, chats, messages } from '@/lib/db/sch
 import { eq, and } from 'drizzle-orm';
 import { formatMessageForFrontend } from '@/lib/db/messages';
 import { buildTemplateComponents } from '@/lib/whatsapp/template-params';
+import { enforceMessaging } from '@/lib/limits';
 
 export async function POST(request: Request) {
   try {
     const team = await getTeamForUser();
     if (!team) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Enforce messaging plan gate
+    await enforceMessaging(team.id);
 
     const body = await request.json();
     const { recipientJid, templateId, instanceId, variables } = body;

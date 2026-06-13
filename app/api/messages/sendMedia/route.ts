@@ -5,6 +5,7 @@ import { chats, evolutionInstances, type Message } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { formatMessageForFrontend } from '@/lib/db/messages';
 import { sendMediaViaProvider } from '@/lib/whatsapp/send-helpers';
+import { enforceMessaging } from '@/lib/limits';
 import fs from 'fs/promises';
 import path from 'path';
 import { Buffer } from 'buffer';
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest) {
 
     const team = await getTeamForUser();
     if (!team) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Enforce messaging plan gate
+    await enforceMessaging(team.id);
 
     let activeInstance = null;
     let targetChat = null;

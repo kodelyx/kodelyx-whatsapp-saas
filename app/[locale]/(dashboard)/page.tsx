@@ -371,8 +371,8 @@ export default async function HomePage() {
                   )}
                   <h3 className="text-xl font-semibold mb-2">{plan.name}</h3>
                   <div className="flex items-baseline gap-1 mb-6">
-                    <span className="text-4xl font-bold">${plan.amount / 100}</span>
-                    <span className="text-muted-foreground">/{plan.interval === 'month' ? t('pricing.interval_month') : t('pricing.interval_year')}</span>
+                    <span className="text-4xl font-bold">{plan.amount === 0 ? 'Free' : `${plan.currency === 'inr' ? '₹' : '$'}${plan.amount / 100}`}</span>
+                    {plan.amount > 0 && <span className="text-muted-foreground">/{plan.interval === 'month' ? t('pricing.interval_month') : t('pricing.interval_year')}</span>}
                   </div>
                   <p className="text-sm text-muted-foreground mb-6 min-h-[40px]">{plan.description || "Perfect for getting started."}</p>
                   
@@ -394,6 +394,11 @@ export default async function HomePage() {
                     {plan.isFlowBuilderEnabled && (
                         <li className="flex items-center text-sm gap-3">
                             <CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> {t('pricing.features.flow')}
+                        </li>
+                    )}
+                    {(plan as any).isMessagingEnabled && (
+                        <li className="flex items-center text-sm gap-3">
+                            <CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> {(plan as any).maxMonthlyMessages > 0 ? `${(plan as any).maxMonthlyMessages.toLocaleString()} msgs/month` : 'Unlimited messaging'}
                         </li>
                     )}
                   </ul>

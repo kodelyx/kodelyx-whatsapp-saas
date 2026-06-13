@@ -103,8 +103,6 @@ export const plans = pgTable('plans', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }).notNull(),
   description: text('description'),
-  status: varchar('status', { length: 20 }).notNull().default('completed'),
-  utr: varchar('utr', { length: 50 }),
 
   gatewayId: integer('gateway_id').references(() => paymentGateways.id, { onDelete: 'set null' }),
   gatewayProductId: text('gateway_product_id'),
@@ -114,7 +112,7 @@ export const plans = pgTable('plans', {
   stripeProductId: text('stripe_product_id').notNull().default(''),
   stripePriceId: text('stripe_price_id').notNull().default(''),
   amount: integer('amount').notNull().default(0),
-  currency: varchar('currency', { length: 3 }).notNull().default('usd'),
+  currency: varchar('currency', { length: 3 }).notNull().default('inr'),
   interval: varchar('interval', { length: 20 }).notNull().default('month'),
   trialDays: integer('trial_days').notNull().default(0),
   
@@ -122,10 +120,13 @@ export const plans = pgTable('plans', {
   maxContacts: integer('max_contacts').notNull().default(1000),
   maxInstances: integer('max_instances').notNull().default(1),
 
-  isAiEnabled: boolean('is_ai_enabled').notNull().default(false),
-  isFlowBuilderEnabled: boolean('is_flow_builder_enabled').notNull().default(false),
-  isCampaignsEnabled: boolean('is_campaigns_enabled').notNull().default(false),
-  isTemplatesEnabled: boolean('is_templates_enabled').notNull().default(false),
+  isMessagingEnabled: boolean('is_messaging_enabled').notNull().default(true),
+  maxMonthlyMessages: integer('max_monthly_messages').notNull().default(1000),
+
+  isAiEnabled: boolean('is_ai_enabled').notNull().default(true),
+  isFlowBuilderEnabled: boolean('is_flow_builder_enabled').notNull().default(true),
+  isCampaignsEnabled: boolean('is_campaigns_enabled').notNull().default(true),
+  isTemplatesEnabled: boolean('is_templates_enabled').notNull().default(true),
   isVoiceCallsEnabled: boolean('is_voice_calls_enabled').notNull().default(false),
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -146,6 +147,7 @@ export const teams = pgTable('teams', {
   gatewaySubscriptionId: text('gateway_subscription_id'),
   planName: varchar('plan_name', { length: 50 }),
   subscriptionStatus: varchar('subscription_status', { length: 20 }),
+  subscriptionEndsAt: timestamp('subscription_ends_at'),
   isCanceled: boolean('is_canceled').default(false),
   trialEndsAt: timestamp('trial_ends_at'),
 });
