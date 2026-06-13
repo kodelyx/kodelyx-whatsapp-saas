@@ -116,6 +116,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [selectedSound, setSelectedSound] = useState('sound1');
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  // Many mobile browsers don't expose the Notification API — track support so we
+  // don't nag with an "Enable notifications" banner that can't actually work.
+  const [notificationsSupported, setNotificationsSupported] = useState(true);
   const [mutedChats, setMutedChats] = useState<Set<string>>(new Set());
   const mutedChatsRef = useRef<Set<string>>(mutedChats);
   mutedChatsRef.current = mutedChats;
@@ -147,11 +150,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     if ('Notification' in window) {
       setNotificationPermission(Notification.permission);
+    } else {
+      setNotificationsSupported(false);
     }
   }, []);
 
   useEffect(() => {
-    if (notificationPermission === 'default' || notificationPermission === 'denied') {
+    if (notificationsSupported && (notificationPermission === 'default' || notificationPermission === 'denied')) {
       setSystemAlert({
         type: 'permission',
         message: 'Enable desktop notifications to receive message alerts.',
@@ -161,7 +166,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } else {
       setSystemAlert(prev => prev?.type === 'permission' ? null : prev);
     }
-  }, [notificationPermission]);
+  }, [notificationPermission, notificationsSupported]);
 
   const requestNotificationPermission = async () => {
     if (!('Notification' in window)) {

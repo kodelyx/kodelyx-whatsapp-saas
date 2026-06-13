@@ -147,7 +147,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-muted overflow-hidden">
+    <div className="flex h-dvh bg-muted overflow-hidden">
       <Sidebar />
 
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
