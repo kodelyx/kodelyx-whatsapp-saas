@@ -48,11 +48,6 @@ export async function POST(request: Request) {
     const data = await response.json();
     const templates = data.data || [];
 
-    const fs = await import('fs/promises');
-    const path = await import('path');
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'templates');
-    await fs.mkdir(uploadDir, { recursive: true });
-
     const upsertPromises = templates.map(async (tpl: any) => {
       // Download header images locally (Meta CDN URLs expire)
       const components = [...(tpl.components || [])];

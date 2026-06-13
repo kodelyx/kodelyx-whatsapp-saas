@@ -146,49 +146,7 @@ export default function GeneralPage() {
             </form>
           </CardContent>
         </Card>
-
-        <ThemeCard />
       </div>
     </section>
-  );
-}
-
-function ThemeCard() {
-  const { useTheme } = require('next-themes');
-  const { theme, setTheme } = useTheme();
-
-  const themes = [
-    { value: 'light', label: 'Light', icon: '☀️' },
-    { value: 'dark', label: 'Dark', icon: '🌙' },
-    { value: 'system', label: 'System', icon: '💻' },
-  ];
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Appearance</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground mb-4">
-          Choose your preferred theme for the dashboard.
-        </p>
-        <div className="flex gap-3">
-          {themes.map((t) => (
-            <button
-              key={t.value}
-              onClick={() => setTheme(t.value)}
-              className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                theme === t.value
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:border-foreground/20'
-              }`}
-            >
-              <span className="text-2xl">{t.icon}</span>
-              <span className="text-sm font-medium">{t.label}</span>
-            </button>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
   );
 }

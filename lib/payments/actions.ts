@@ -22,7 +22,7 @@ export const checkoutAction = withTeam(async (formData, team) => {
     throw new Error('Invalid plan');
   }
 
-  
+
   if (plan.gatewayId) {
     const adapter = await getGatewayById(plan.gatewayId);
 
@@ -47,11 +47,18 @@ export const checkoutAction = withTeam(async (formData, team) => {
       existingCustomerId: adapter.type === 'stripe' ? (team.stripeCustomerId || undefined) : undefined,
     });
 
-    
+
     if (result.metadata?.razorpayPlanId && !plan.gatewayPriceId) {
       await db.update(plans).set({
         gatewayPriceId: result.metadata.razorpayPlanId,
       }).where(eq(plans.id, plan.id));
+    }
+
+    // Offline gateway: no external checkout page — the request is recorded for
+    // manual verification. Return a result so the client can stop the spinner
+    // and show a confirmation (no redirect to the same page = no stuck spinner).
+    if (adapter.type === 'offline') {
+      return { offline: true, planName: plan.name };
     }
 
     if (result.url) {

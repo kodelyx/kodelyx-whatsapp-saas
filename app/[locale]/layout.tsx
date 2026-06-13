@@ -4,7 +4,7 @@ import { Manrope } from 'next/font/google';
 import { getUser, getTeamForUser } from '@/lib/db/queries';
 import { SWRConfig } from 'swr';
 import { ThemeProvider } from '@/components/theme-provider';
-import { Toaster } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
 import { getBranding } from '@/lib/db/queries/branding';
 import { BrandingProvider } from '@/providers/branding-provider';
 import { CallProviderWrapper } from '@/providers/call-provider-wrapper';
@@ -76,11 +76,7 @@ export default async function LocaleLayout({
               </CallProviderWrapper>
             </BrandingProvider>
 
-            <Toaster
-              richColors
-              position="top-center"
-              theme="system"
-            />
+            <Toaster />
           </SWRConfig>
         </ThemeProvider>
       </NextIntlClientProvider>

@@ -58,15 +58,31 @@ export function PricingClient({ allPlans, currentTeam }: { allPlans: Plan[], cur
       return;
     }
 
-    // Paid plan → redirect to checkout
+    // Paid plan → submit upgrade request
     setLoadingPlanId(plan.id);
+    const pending = toast.loading('Sending your upgrade request…');
     try {
       const formData = new FormData();
       formData.append('planId', plan.id.toString());
-      await checkoutAction(formData);
+      const result: any = await checkoutAction(formData);
+
+      toast.dismiss(pending);
+
+      // Offline gateway returns a result instead of redirecting.
+      if (result?.offline) {
+        toast.success('Upgrade request sent!', {
+          description: `Your request for ${result.planName || plan.name} has been received. Our team will verify your payment and activate it shortly.`,
+          duration: 8000,
+        });
+      }
     } catch (error: any) {
-      // NEXT_REDIRECT is thrown by Next.js internally when redirect() is called — not a real error
-      if (error?.digest?.startsWith?.('NEXT_REDIRECT')) return;
+      // NEXT_REDIRECT is thrown by Next.js internally when redirect() is called
+      // (Stripe/Razorpay) — not a real error, let the browser navigate away.
+      if (error?.digest?.startsWith?.('NEXT_REDIRECT')) {
+        toast.dismiss(pending);
+        return;
+      }
+      toast.dismiss(pending);
       toast.error(error.message || 'Failed to start checkout');
     }
     setLoadingPlanId(null);
@@ -83,21 +99,21 @@ export function PricingClient({ allPlans, currentTeam }: { allPlans: Plan[], cur
   ];
 
   return (
-    <div className="min-h-full w-full bg-background py-16 px-4 sm:px-6 lg:px-8 overflow-y-auto font-sans">
+    <div className="min-h-full w-full bg-background py-8 sm:py-16 px-4 sm:px-6 lg:px-8 overflow-x-hidden overflow-y-auto font-sans">
       {/* Header */}
-      <div className="max-w-7xl mx-auto text-center mb-16">
-        <div className="flex items-center justify-center gap-2 mb-4">
+      <div className="max-w-7xl mx-auto text-center mb-10 sm:mb-16">
+        <div className="flex items-center justify-center gap-2 mb-3 sm:mb-4">
           <MessageCircle className="h-5 w-5 text-primary" />
           <span className="text-sm font-medium tracking-wide uppercase text-primary">{branding?.name || 'ChatBulky'}</span>
         </div>
-        
-        <h1 className="text-4xl font-medium text-foreground sm:text-6xl tracking-tight mb-4">
+
+        <h1 className="text-3xl font-medium text-foreground sm:text-6xl tracking-tight mb-3 sm:mb-4">
           Choose Your Plan
           <br />
           <span className="text-muted-foreground/80">Scale as you grow</span>
         </h1>
-        
-        <p className="max-w-xl mx-auto text-lg text-muted-foreground mb-4">
+
+        <p className="max-w-xl mx-auto text-base sm:text-lg text-muted-foreground mb-4 px-2">
           Start free, upgrade when you&apos;re ready. All plans include WhatsApp connection, CRM, and contact management.
         </p>
 
@@ -118,7 +134,7 @@ export function PricingClient({ allPlans, currentTeam }: { allPlans: Plan[], cur
 
       {/* Plan Cards */}
       <div className={cn(
-        "grid gap-6 max-w-7xl mx-auto items-start pb-16",
+        "grid gap-5 sm:gap-6 max-w-7xl mx-auto items-start pb-12 sm:pb-16",
         sortedPlans.length <= 3 ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
       )}>
         {sortedPlans.map((plan, index) => {
@@ -144,12 +160,12 @@ export function PricingClient({ allPlans, currentTeam }: { allPlans: Plan[], cur
             <div
               key={plan.id}
               className={cn(
-                "relative flex flex-col p-8 transition-all duration-300 h-full",
-                "rounded-[2.5rem] border",
-                isCurrentPlan 
-                  ? "bg-card border-primary shadow-[0_0_40px_-10px_hsl(var(--primary)/0.3)]" 
-                  : isFeatured && !hasActivePlan 
-                  ? `${colors.bg} ${colors.border} z-10 scale-105` 
+                "relative flex flex-col p-6 sm:p-8 transition-all duration-300 h-full",
+                "rounded-3xl sm:rounded-[2.5rem] border",
+                isCurrentPlan
+                  ? "bg-card border-primary shadow-[0_0_40px_-10px_hsl(var(--primary)/0.3)]"
+                  : isFeatured && !hasActivePlan
+                  ? `${colors.bg} ${colors.border} z-10 md:scale-105`
                   : `${colors.bg} ${colors.border} hover:border-foreground/20`,
               )}
             >
@@ -167,12 +183,12 @@ export function PricingClient({ allPlans, currentTeam }: { allPlans: Plan[], cur
                 </div>
               )}
 
-              <div className="mb-8">
-                <div className="h-12 w-12 rounded-full border border-border/50 bg-gradient-to-br from-background to-muted flex items-center justify-center mb-6">
+              <div className="mb-6 sm:mb-8">
+                <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-border/50 bg-gradient-to-br from-background to-muted flex items-center justify-center mb-4 sm:mb-6">
                   <Icon className={cn("h-6 w-6", "text-primary")} />
                 </div>
-                
-                <h3 className="text-2xl font-medium mb-2 text-foreground">
+
+                <h3 className="text-xl sm:text-2xl font-medium mb-1 sm:mb-2 text-foreground">
                   {plan.name}
                 </h3>
                 <p className="text-sm text-muted-foreground">
@@ -180,8 +196,8 @@ export function PricingClient({ allPlans, currentTeam }: { allPlans: Plan[], cur
                 </p>
               </div>
 
-              <div className="mb-8 flex items-baseline gap-1">
-                <span className="text-4xl font-semibold tracking-tight text-foreground">
+              <div className="mb-6 sm:mb-8 flex items-baseline gap-1">
+                <span className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
                   {plan.amount === 0 ? 'Free' : `₹${(plan.amount / 100).toLocaleString('en-IN')}`}
                 </span>
                 {plan.amount > 0 && (
