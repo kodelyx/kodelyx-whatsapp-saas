@@ -198,7 +198,6 @@
     "canceled": "Canceled",
     "active": "Active",
     "free_plan": "Free Plan",
-
     "members_title": "Team Members",
     "no_members": "No team members yet.",
     "remove_btn": "Remove",
@@ -209,12 +208,10 @@
     "remove_member": "Remove member",
     "you": "you",
     "pending": "Pending",
-
     "invites_title": "Pending Invitations",
     "invite_sent": "Sent: {date}",
     "copy_link": "Copy Link",
     "revoke": "Revoke",
-
     "invite_section_title": "Invite Team Member",
     "email_label": "Email",
     "role_label": "Role",
@@ -262,7 +259,6 @@
     "save_btn": "Save",
     "role_updated": "Permissions updated",
     "failed_to_update_role": "Failed to update permissions",
-
     "general_title": "General Settings",
     "account_info": "Account Information",
     "name_label": "Name",
@@ -431,7 +427,6 @@
     "system_instructions_desc": "Define how the AI should behave, its tone, and limitations.",
     "system_prompt_placeholder": "Ex: You are a support agent for PizzaPlace. Be friendly. Your goal is to take orders...",
     "save_config_btn": "Save Configuration",
-
     "voice_config_title": "Voice Call Settings",
     "voice_config_desc": "Manage your phone numbers and call credits.",
     "voice_phone_number": "Phone Number",
@@ -472,7 +467,6 @@
     "voice_col_credits": "Credits",
     "voice_page_info": "Page {page} of {total}",
     "voice_no_history": "No call history yet.",
-
     "activity_log_title": "Activity Log",
     "recent_activity_title": "Recent Activity",
     "no_activity_yet_title": "No activity yet",
@@ -1148,7 +1142,6 @@
     "call_bubble_canceled": "Call canceled",
     "call_system_log": "{agent} made a call ({status})",
     "call_preview": "📞 Voice call · {agent}",
-
     "sync_messages": {
       "banner": "This chat has no messages. Would you like to import the history?",
       "import_btn": "Import history",
@@ -1356,7 +1349,11 @@
       "success_loaded": "{count} contacts loaded successfully.",
       "error_no_phone": "No valid 'phone' column found in spreadsheet",
       "back_btn": "Back",
-      "next_btn": "Next"
+      "next_btn": "Next",
+      "or_divider": "OR",
+      "paste_label": "Paste phone numbers",
+      "paste_placeholder": "5511999999999\n5511888888888",
+      "paste_hint": "One number per line, or separated by commas or spaces. Country code recommended."
     },
     "content": {
       "title": "Message Content",

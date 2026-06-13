@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 import { ArrowLeft, Upload, FileSpreadsheet, Send, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from '@/components/ui/card';
@@ -30,6 +31,7 @@ export default function NewCampaignPage() {
     const [instanceId, setInstanceId] = useState('');
     const [scheduledAt, setScheduledAt] = useState('');
     const [leads, setLeads] = useState<any[]>([]);
+    const [pastedNumbers, setPastedNumbers] = useState('');
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
     const [createContacts, setCreateContacts] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -144,11 +146,27 @@ export default function NewCampaignPage() {
             if (parsed.length === 0) {
                 toast.error(t('leads.error_no_phone'));
             } else {
+                setPastedNumbers('');
                 setLeads(parsed);
                 toast.success(t('leads.success_loaded', { count: parsed.length }));
             }
         };
         reader.readAsArrayBuffer(file);
+    };
+
+    // Parse phone numbers typed/pasted directly (one per line or separated by
+    // spaces/commas/semicolons). Live-updates leads; no extra columns, so
+    // template variables fall back to static values.
+    const handlePasteNumbers = (text: string) => {
+        setPastedNumbers(text);
+        const seen = new Set<string>();
+        const parsed = text
+            .split(/[\s,;]+/)
+            .map(tok => tok.replace(/\D/g, ''))
+            .filter(phone => phone.length >= 8)
+            .filter(phone => { if (seen.has(phone)) return false; seen.add(phone); return true; })
+            .map(phone => ({ phone, variables: { phone } }));
+        setLeads(parsed);
     };
 
     const handleSubmit = async () => {
@@ -270,7 +288,25 @@ export default function NewCampaignPage() {
                                     <Download className="h-4 w-4" />
                                     {t('leads.download_template')}
                                 </Button>
-                                
+
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1 h-px bg-border" />
+                                    <span className="text-xs font-medium text-muted-foreground uppercase">{t('leads.or_divider')}</span>
+                                    <div className="flex-1 h-px bg-border" />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>{t('leads.paste_label')}</Label>
+                                    <Textarea
+                                        value={pastedNumbers}
+                                        onChange={(e) => handlePasteNumbers(e.target.value)}
+                                        placeholder={t('leads.paste_placeholder')}
+                                        rows={5}
+                                        className="font-mono text-sm"
+                                    />
+                                    <p className="text-xs text-muted-foreground">{t('leads.paste_hint')}</p>
+                                </div>
+
                                 {leads.length > 0 && (
                                     <div className="bg-primary/10 p-4 rounded-md flex items-center text-primary">
                                         <FileSpreadsheet className="h-5 w-5 mr-2" />

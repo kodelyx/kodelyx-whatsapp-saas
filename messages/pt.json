@@ -427,7 +427,6 @@
     "system_instructions_desc": "Defina como a IA deve se comportar, seu tom e limitações.",
     "system_prompt_placeholder": "Ex: Você é um agente de suporte da PizzariaX. Seja amigável. Seu objetivo é anotar pedidos...",
     "save_config_btn": "Salvar Configuração",
-
     "voice_config_title": "Configurações de Chamadas de Voz",
     "voice_config_desc": "Gerencie seus números de telefone e créditos de chamada.",
     "voice_phone_number": "Número de Telefone",
@@ -468,7 +467,6 @@
     "voice_col_credits": "Créditos",
     "voice_page_info": "Página {page} de {total}",
     "voice_no_history": "Nenhum histórico de chamadas ainda.",
-
     "activity_log_title": "Log de Atividade",
     "recent_activity_title": "Atividade Recente",
     "no_activity_yet_title": "Nenhuma atividade ainda",
@@ -1109,7 +1107,6 @@
     "select_template_btn": "Selecionar modelo de mensagem",
     "send_template_btn": "Enviar modelo",
     "no_approved_templates": "Nenhum modelo aprovado encontrado",
-
     "voice_call": "Chamada de Voz",
     "calling": "Chamando...",
     "in_call": "Em Chamada",
@@ -1145,7 +1142,6 @@
     "call_bubble_canceled": "Ligação cancelada",
     "call_system_log": "{agent} fez uma ligação ({status})",
     "call_preview": "📞 Ligação de voz · {agent}",
-
     "sync_messages": {
       "banner": "Este chat não possui mensagens. Deseja importar o histórico?",
       "import_btn": "Importar histórico",
@@ -1353,7 +1349,11 @@
       "success_loaded": "{count} contatos carregados com sucesso.",
       "error_no_phone": "Nenhuma coluna 'phone' válida encontrada na planilha",
       "back_btn": "Voltar",
-      "next_btn": "Próximo"
+      "next_btn": "Próximo",
+      "or_divider": "OU",
+      "paste_label": "Colar números de telefone",
+      "paste_placeholder": "5511999999999\n5511888888888",
+      "paste_hint": "Um número por linha, ou separados por vírgulas ou espaços. Código do país recomendado."
     },
     "content": {
       "title": "Conteúdo da Mensagem",

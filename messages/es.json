@@ -1,5 +1,5 @@
 {
- "Utils": {
+  "Utils": {
     "bytes": "Bytes",
     "error_base64": "No se pudo convertir el archivo a base64",
     "today": "Hoy",
@@ -427,7 +427,6 @@
     "system_instructions_desc": "Define cómo debe comportarse la IA, su tono y limitaciones.",
     "system_prompt_placeholder": "Ej: Eres un agente de soporte para PizzeríaX. Sé amable. Tu objetivo es tomar pedidos...",
     "save_config_btn": "Guardar Configuración",
-
     "voice_config_title": "Configuración de Llamadas de Voz",
     "voice_config_desc": "Administra tus números de teléfono y créditos de llamada.",
     "voice_phone_number": "Número de Teléfono",
@@ -468,7 +467,6 @@
     "voice_col_credits": "Créditos",
     "voice_page_info": "Página {page} de {total}",
     "voice_no_history": "Sin historial de llamadas aún.",
-
     "activity_log_title": "Registro de Actividad",
     "recent_activity_title": "Actividad Reciente",
     "no_activity_yet_title": "Aún no hay actividad",
@@ -1108,7 +1106,6 @@
     "select_template_btn": "Seleccionar plantilla de mensaje",
     "send_template_btn": "Enviar plantilla",
     "no_approved_templates": "No se encontraron plantillas aprobadas",
-
     "voice_call": "Llamada de Voz",
     "calling": "Llamando...",
     "in_call": "En Llamada",
@@ -1144,7 +1141,6 @@
     "call_bubble_canceled": "Llamada cancelada",
     "call_system_log": "{agent} hizo una llamada ({status})",
     "call_preview": "📞 Llamada de voz · {agent}",
-
     "sync_messages": {
       "banner": "Este chat no tiene mensajes. ¿Desea importar el historial?",
       "import_btn": "Importar historial",
@@ -1350,7 +1346,11 @@
       "success_loaded": "{count} contactos cargados con éxito.",
       "error_no_phone": "No se encontró columna válida 'phone' en la hoja de cálculo",
       "back_btn": "Atrás",
-      "next_btn": "Siguiente"
+      "next_btn": "Siguiente",
+      "or_divider": "O",
+      "paste_label": "Pegar números de teléfono",
+      "paste_placeholder": "5511999999999\n5511888888888",
+      "paste_hint": "Un número por línea, o separados por comas o espacios. Se recomienda código de país."
     },
     "content": {
       "title": "Contenido del Mensaje",
