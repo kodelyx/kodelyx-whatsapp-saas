@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'scontent.whatsapp.net' },
       { protocol: 'https', hostname: '**.cdninstagram.com' },
       { protocol: 'https', hostname: 'pps.whatsapp.net' },
+      { protocol: 'https', hostname: '**.public.blob.vercel-storage.com' },
     ],
   },
   allowedDevOrigins: ['chatbulky.com', 'www.chatbulky.com'],

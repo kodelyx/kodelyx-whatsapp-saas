@@ -4,8 +4,7 @@ import { db } from '@/lib/db/drizzle';
 import { chatTheme } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { uploadFile } from '@/lib/storage/upload';
 
 export async function updateChatTheme(formData: FormData) {
   const backgroundType = formData.get('backgroundType') as string;
@@ -18,17 +17,9 @@ export async function updateChatTheme(formData: FormData) {
   const backgroundImage = formData.get('backgroundImage') as File;
 
   try {
-    const uploadDir = join(process.cwd(), 'public/uploads/chat-theme');
-    await mkdir(uploadDir, { recursive: true });
-
     let backgroundImageUrl = '';
     if (backgroundImage && backgroundImage.size > 0) {
-      const bytes = await backgroundImage.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      const filename = `${Date.now()}-${backgroundImage.name}`;
-      const path = join(uploadDir, filename);
-      await writeFile(path, buffer);
-      backgroundImageUrl = `/uploads/chat-theme/${filename}`;
+      backgroundImageUrl = await uploadFile(backgroundImage, 'chat-theme');
     }
 
     const current = await db.query.chatTheme.findFirst();
