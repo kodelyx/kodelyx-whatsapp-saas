@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { LogOut, Settings, MessageCircle, Menu, X } from 'lucide-react';
 import {
   DropdownMenu,
@@ -15,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { signOut } from '@/app/[locale]/(login)/actions';
 import { User } from '@/lib/db/schema';
 import useSWR, { mutate } from 'swr';
-import { Sidebar } from '@/components/interface/Sidebar';
+import { Sidebar, SidebarNav } from '@/components/interface/Sidebar';
 import Logo from '@/components/interface/Logo';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 
@@ -127,6 +128,12 @@ function Header() {
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isHomePage = pathname === '/' || /^\/[a-z]{2}$/.test(pathname);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Close the mobile nav drawer whenever the route changes.
+  useEffect(() => {
+    setIsDrawerOpen(false);
+  }, [pathname]);
 
   if (isHomePage) {
     return (
@@ -142,9 +149,39 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-muted overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        {children}
-      </main>
+
+      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
+        {/* Mobile top bar — desktop uses the left rail instead */}
+        <header className="md:hidden flex items-center justify-between gap-2 px-3 h-14 border-b bg-background shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button variant="ghost" size="icon" onClick={() => setIsDrawerOpen(true)} aria-label="Open menu">
+              <Menu className="h-6 w-6" />
+            </Button>
+            <Link href="/dashboard" className="min-w-0 truncate"><Logo /></Link>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ThemeSwitcher />
+            <Suspense fallback={<div className="h-9 w-9 bg-muted rounded-full animate-pulse" />}>
+              <UserMenu />
+            </Suspense>
+          </div>
+        </header>
+
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+          {children}
+        </main>
+      </div>
+
+      {/* Mobile navigation drawer */}
+      <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+        <SheetContent side="left" className="w-72 p-0 flex flex-col gap-0">
+          <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+          <div className="flex items-center p-4 border-b h-[60px] shrink-0">
+            <Link href="/dashboard" onClick={() => setIsDrawerOpen(false)}><Logo /></Link>
+          </div>
+          <SidebarNav expanded onNavigate={() => setIsDrawerOpen(false)} />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

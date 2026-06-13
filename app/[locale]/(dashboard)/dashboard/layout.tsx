@@ -483,8 +483,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div className="flex h-screen bg-muted/40 dark:bg-background">
-      <aside className="w-full max-w-md flex flex-col bg-card border-r md:w-[35%] lg:w-[28%]">
+    <div className="flex h-full bg-muted/40 dark:bg-background">
+      <aside className={`${activeChatNumber ? 'hidden md:flex' : 'flex'} w-full md:w-[35%] lg:w-[28%] flex-col bg-card border-r min-h-0`}>
         <header className="flex items-center justify-between px-4 py-2 border-b h-[60px]">
           <div className="flex items-center gap-2">
             {isSelectionMode ? (
@@ -638,7 +638,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
       </aside>
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">{children}</main>
+      <main className={`${activeChatNumber ? 'flex' : 'hidden md:flex'} flex-1 flex-col h-full min-h-0 overflow-hidden`}>{children}</main>
 
       <NewChatDialog 
         isOpen={isNewChatOpen} 

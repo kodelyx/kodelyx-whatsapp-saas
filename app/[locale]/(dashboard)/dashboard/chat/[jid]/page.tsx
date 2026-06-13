@@ -72,7 +72,10 @@ export default function ChatPage() {
   const [chatSidebarCollapsed, setChatSidebarCollapsed] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem('chatSidebarCollapsed') === 'true') {
+    // On mobile the panel overlays the whole chat, so start collapsed regardless
+    // of the persisted desktop preference.
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    if (isMobile || localStorage.getItem('chatSidebarCollapsed') === 'true') {
       setChatSidebarCollapsed(true);
     }
   }, []);
@@ -672,8 +675,8 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
-      <div className="flex flex-col flex-1 h-screen">
+    <div className="relative flex h-full bg-background">
+      <div className="flex flex-col flex-1 h-full min-w-0">
 
         <ChatHeader
           chatDetails={chatDetails}

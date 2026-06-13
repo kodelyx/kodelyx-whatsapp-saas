@@ -114,7 +114,7 @@ export function ChatSidebar({ chatDetails, isCollapsed, onToggleCollapse, isGrou
   };
 
   return (
-    <aside className="w-80 border-l bg-card flex flex-col h-screen shrink-0 overflow-y-auto">
+    <aside className="absolute inset-0 z-30 w-full md:static md:inset-auto md:z-auto md:w-80 border-l bg-card flex flex-col h-full shrink-0 overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
         <h3 className="font-semibold text-sm">Contact Info</h3>
