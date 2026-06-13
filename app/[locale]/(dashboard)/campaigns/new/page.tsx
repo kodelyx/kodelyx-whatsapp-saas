@@ -111,10 +111,12 @@ export default function NewCampaignPage() {
 
     const handleDownloadTemplate = () => {
         const data = [
-            { phone: '5511999999999', '1': 'João', '2': 'Empresa ABC' },
-            { phone: '5511888888888', '1': 'Maria', '2': 'Empresa XYZ' },
+            { phone: '919812345678', '1': 'Rahul', '2': 'Sharma Traders' },
+            { phone: '916262626232', '1': 'Priya', '2': 'Verma Enterprises' },
         ];
-        const ws = XLSX.utils.json_to_sheet(data);
+        // Force column order phone | 1 | 2 (object integer-keys would otherwise
+        // sort ahead of "phone"), so the text-format fix below lands on phone.
+        const ws = XLSX.utils.json_to_sheet(data, { header: ['phone', '1', '2'] });
         const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
         for (let row = range.s.r + 1; row <= range.e.r; row++) {
             const cell = ws[XLSX.utils.encode_cell({ r: row, c: 0 })];
