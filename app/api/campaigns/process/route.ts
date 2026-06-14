@@ -4,6 +4,7 @@ import { campaigns, campaignLeads, chats, contacts, messages } from '@/lib/db/sc
 import { eq, and, sql, lte, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { buildTemplateComponents } from '@/lib/whatsapp/template-params';
+import { getMessageAllowance } from '@/lib/limits';
 
 // Allow this function up to 60s (the max on Vercel Hobby). We stop sending
 // before TIME_BUDGET_MS and hand the remaining leads to the next invocation.
@@ -121,10 +122,39 @@ export async function GET(request: Request) {
                 continue;
             }
 
+            // Plan gate: cap this batch to the team's remaining monthly quota.
+            // If the quota is fully used we pause the campaign (the leads we just
+            // claimed go back to PENDING so none are lost); it can resume after an
+            // upgrade or next month. If only part of the batch fits, send that
+            // much and pause for the rest.
+            let batchLeads = leads;
+            let limitHit = false;
+            const allowance = await getMessageAllowance(campaign.teamId);
+            if (!allowance.unlimited) {
+                if (allowance.remaining <= 0) {
+                    await db.update(campaignLeads)
+                        .set({ status: 'PENDING' })
+                        .where(inArray(campaignLeads.id, leads.map(l => l.id)));
+                    await db.update(campaigns)
+                        .set({ status: 'PAUSED' })
+                        .where(eq(campaigns.id, campaign.id));
+                    results.push({ campaignId: campaign.id, status: 'paused_limit', used: allowance.used, limit: allowance.limit });
+                    continue;
+                }
+                if (allowance.remaining < leads.length) {
+                    batchLeads = leads.slice(0, allowance.remaining);
+                    const overflow = leads.slice(allowance.remaining);
+                    await db.update(campaignLeads)
+                        .set({ status: 'PENDING' })
+                        .where(inArray(campaignLeads.id, overflow.map(l => l.id)));
+                    limitHit = true;
+                }
+            }
+
             let sentCount = 0;
             let failedCount = 0;
 
-            for (const lead of leads) {
+            for (const lead of batchLeads) {
                 // Stop before the function times out. Any leads we don't reach
                 // stay in SENDING and get picked up by the next self-triggered
                 // invocation, so nothing is lost.
@@ -316,6 +346,18 @@ export async function GET(request: Request) {
                 failedCount: sql`${campaigns.failedCount} + ${failedCount}`
             }).where(eq(campaigns.id, campaign.id));
 
+            if (limitHit) {
+                // Sent everything the quota allowed this run; the rest is back in
+                // PENDING. Pause so the chain doesn't keep retriggering against an
+                // exhausted quota. A fresh "Send" (after upgrade / next month)
+                // resumes it.
+                await db.update(campaigns)
+                    .set({ status: 'PAUSED' })
+                    .where(eq(campaigns.id, campaign.id));
+                results.push({ campaignId: campaign.id, processed: batchLeads.length, sent: sentCount, failed: failedCount, status: 'paused_limit' });
+                continue;
+            }
+
             const remaining = await db.query.campaignLeads.findFirst({
                 where: and(
                     eq(campaignLeads.campaignId, campaign.id),
@@ -333,7 +375,7 @@ export async function GET(request: Request) {
 
             results.push({
                 campaignId: campaign.id,
-                processed: leads.length,
+                processed: batchLeads.length,
                 sent: sentCount,
                 failed: failedCount,
                 status: remaining ? 'processing' : 'completed'

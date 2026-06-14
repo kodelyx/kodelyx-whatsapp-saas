@@ -1,5 +1,5 @@
 import { db } from '@/lib/db/drizzle';
-import { plans, teams, messages, chats } from '@/lib/db/schema';
+import { plans, teams, messages, chats, campaigns } from '@/lib/db/schema';
 import { eq, and, gte, sql, count } from 'drizzle-orm';
 import { 
   getTeamMemberCount, 
@@ -137,4 +137,76 @@ export async function enforceMessaging(teamId: number) {
       );
     }
   }
+}
+
+export type MessageAllowance = {
+  unlimited: boolean;
+  limit: number;
+  used: number;
+  remaining: number;
+};
+
+/**
+ * How many messages this team can still send this calendar month under its plan.
+ *
+ * Usage is the sum of two non-overlapping sources so campaigns are counted too:
+ *  - directCount: rows in `messages` (fromMe, not internal) this month. This
+ *    already includes 1-to-1 sends AND campaigns sent with createContacts=true
+ *    (those write a message row).
+ *  - silentCampaignCount: campaigns with createContacts=false write NO message
+ *    row, so they would otherwise be invisible to the quota. We add their
+ *    sentCount for campaigns created this month.
+ * createContacts=true campaigns are only counted via directCount, so there is
+ * no double counting.
+ */
+export async function getMessageAllowance(teamId: number): Promise<MessageAllowance> {
+  const team = await db.query.teams.findFirst({
+    where: eq(teams.id, teamId),
+    with: { plan: true },
+  });
+
+  const activePlan = team?.plan ?? FREE_TIER;
+
+  // Messaging disabled entirely → nothing allowed.
+  if (!activePlan.isMessagingEnabled) {
+    return { unlimited: false, limit: 0, used: 0, remaining: 0 };
+  }
+
+  // 0 (or negative) monthly limit means unlimited.
+  if (!activePlan.maxMonthlyMessages || activePlan.maxMonthlyMessages <= 0) {
+    return { unlimited: true, limit: 0, used: 0, remaining: Number.MAX_SAFE_INTEGER };
+  }
+
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [direct] = await db
+    .select({ count: count() })
+    .from(messages)
+    .innerJoin(chats, eq(messages.chatId, chats.id))
+    .where(and(
+      eq(chats.teamId, teamId),
+      eq(messages.fromMe, true),
+      eq(messages.isInternal, false),
+      gte(messages.timestamp, startOfMonth),
+    ));
+
+  const [silent] = await db
+    .select({ total: sql<number>`coalesce(sum(${campaigns.sentCount}), 0)` })
+    .from(campaigns)
+    .where(and(
+      eq(campaigns.teamId, teamId),
+      eq(campaigns.createContacts, false),
+      gte(campaigns.createdAt, startOfMonth),
+    ));
+
+  const used = (direct?.count ?? 0) + Number(silent?.total ?? 0);
+  const limit = activePlan.maxMonthlyMessages;
+
+  return {
+    unlimited: false,
+    limit,
+    used,
+    remaining: Math.max(0, limit - used),
+  };
 }

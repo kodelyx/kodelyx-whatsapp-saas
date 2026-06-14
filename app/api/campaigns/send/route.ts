@@ -4,6 +4,7 @@ import { getTeamForUser } from '@/lib/db/queries';
 import { checkRoutePermission } from '@/lib/auth/permissions-guard';
 import { campaigns, campaignLeads } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { getMessageAllowance } from '@/lib/limits';
 
 export async function POST(request: Request) {
   try {
@@ -24,7 +25,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Campaign invalid' }, { status: 404 });
     }
 
-    if (campaign.status !== 'DRAFT') {
+    // DRAFT = first send. PAUSED = a run that stopped at the monthly limit and
+    // can be resumed (e.g. after an upgrade or next month).
+    if (campaign.status !== 'DRAFT' && campaign.status !== 'PAUSED') {
         return NextResponse.json({ error: 'Campaign already started' }, { status: 400 });
     }
 
@@ -35,6 +38,17 @@ export async function POST(request: Request) {
 
     if (pendingCount.length === 0) {
         return NextResponse.json({ error: 'No pending leads' }, { status: 400 });
+    }
+
+    // Plan gate: if the team has already used up its monthly message quota,
+    // don't even start the campaign. (The process loop also caps each batch so
+    // a campaign can't blow past the limit mid-run.)
+    const allowance = await getMessageAllowance(team.id);
+    if (!allowance.unlimited && allowance.remaining <= 0) {
+        return NextResponse.json({
+            error: `Monthly message limit reached (${allowance.used.toLocaleString()}/${allowance.limit.toLocaleString()}). Please upgrade your plan to send more.`,
+            code: 'LIMIT_REACHED',
+        }, { status: 403 });
     }
 
     await db.update(campaigns)
