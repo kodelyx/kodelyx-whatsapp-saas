@@ -43,8 +43,18 @@ export async function POST(request: Request) {
 
     // Kick off the first batch. after() guarantees the trigger is actually
     // sent even though this handler returns immediately — the /process route
-    // then chains the remaining batches on its own.
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    // then chains the remaining batches on its own. We derive the origin from
+    // the incoming request so this works in production without relying on
+    // NEXT_PUBLIC_APP_URL (which is empty there).
+    let baseUrl: string;
+    try {
+        const origin = new URL(request.url).origin;
+        baseUrl = origin && !origin.includes('localhost')
+            ? origin
+            : (process.env.BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
+    } catch {
+        baseUrl = process.env.BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    }
     const cronSecret = process.env.CRON_SECRET;
     after(async () => {
       try {

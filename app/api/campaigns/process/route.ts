@@ -10,18 +10,34 @@ import { buildTemplateComponents } from '@/lib/whatsapp/template-params';
 export const maxDuration = 60;
 
 const BATCH_SIZE = 100;            // max leads pulled from the DB per invocation
-const DELAY_BETWEEN_SENDS_MS = 200;
+const DELAY_BETWEEN_SENDS_MS = 50; // small gap between sends — fast but gentle on Meta's rate limits
 const TIME_BUDGET_MS = 45000;     // stop sending past this point, then self-retrigger
 const CRON_SECRET = process.env.CRON_SECRET;
 
-function triggerNextBatch() {
+// Resolve the public origin to self-call. Prefer the incoming request's own
+// origin (always correct on Vercel — no env var needed), and only fall back to
+// BASE_URL / app-url envs if that somehow isn't a usable https origin. This is
+// what makes the self-chain work in production: NEXT_PUBLIC_APP_URL is empty
+// there, so the old env-only logic pointed at http://localhost:3000 and the
+// chain silently died after the first batch.
+function resolveBaseUrl(request: Request): string {
+    try {
+        const origin = new URL(request.url).origin;
+        if (origin && !origin.includes('localhost')) return origin;
+    } catch { /* fall through to env */ }
+    return process.env.BASE_URL
+        || process.env.NEXTAUTH_URL
+        || process.env.NEXT_PUBLIC_APP_URL
+        || 'http://localhost:3000';
+}
+
+function triggerNextBatch(baseUrl: string) {
     // Vercel Hobby has no per-minute cron, so a campaign drives itself forward
     // by chaining one batch to the next. after() guarantees this runs even
     // though the handler has already returned its response. The short abort is
     // enough to deliver the request (which spawns a fresh invocation) without
     // blocking on the whole chain completing.
     after(async () => {
-        const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
         try {
             await fetch(`${baseUrl}/api/campaigns/process`, {
                 headers: CRON_SECRET ? { 'Authorization': `Bearer ${CRON_SECRET}` } : {},
@@ -328,7 +344,7 @@ export async function GET(request: Request) {
         // batch. This is what carries a large campaign past the first 50 — the
         // chain continues until every lead is sent.
         if (anyRemaining) {
-            triggerNextBatch();
+            triggerNextBatch(resolveBaseUrl(request));
         }
 
         return NextResponse.json({ success: true, results, anyRemaining });
