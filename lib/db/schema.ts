@@ -445,6 +445,10 @@ export const campaignLeads = pgTable('campaign_leads', {
   status: varchar('status', { length: 20 }).default('PENDING'),
   error: text('error'),
   messageId: text('message_id'),
+  // When this lead was last claimed by a worker for sending. Used to atomically
+  // hand out disjoint batches and to reclaim leads left stuck in SENDING by a
+  // crashed/timed-out run, without ever double-sending an in-flight lead.
+  claimedAt: timestamp('claimed_at'),
 });
 
 // Auto-Reply Settings (per instance)

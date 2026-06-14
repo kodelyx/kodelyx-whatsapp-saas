@@ -87,32 +87,30 @@ export async function GET(request: Request) {
                 continue;
             }
 
-            const pendingLeads = await db.query.campaignLeads.findMany({
-                where: and(
-                    eq(campaignLeads.campaignId, campaign.id),
-                    eq(campaignLeads.status, 'PENDING')
-                ),
-                limit: BATCH_SIZE,
-                columns: { id: true }
-            });
-
-            if (pendingLeads.length > 0) {
-                await db.update(campaignLeads)
-                    .set({ status: 'SENDING' })
-                    .where(inArray(campaignLeads.id, pendingLeads.map(l => l.id)));
-            }
-
-            // Always pull SENDING leads — this includes the batch we just promoted
-            // AND any leads a previous invocation left stuck in SENDING because it
-            // was killed mid-flight (Vercel timeout). Without this, a campaign whose
-            // only remaining leads were stuck in SENDING would be wrongly COMPLETED.
-            const leads = await db.query.campaignLeads.findMany({
-                where: and(
-                    eq(campaignLeads.campaignId, campaign.id),
-                    eq(campaignLeads.status, 'SENDING')
-                ),
-                limit: BATCH_SIZE
-            });
+            // Atomically claim a batch. We take PENDING leads plus any leads a
+            // previous run abandoned in SENDING (claimed_at older than the stale
+            // window — i.e. that run crashed/timed out without releasing them).
+            // FOR UPDATE SKIP LOCKED hands concurrent invocations DISJOINT rows,
+            // and stamping claimed_at = now() means a just-claimed lead can't be
+            // re-claimed for the stale window (longer than any single run), so the
+            // same customer is never messaged twice even if invocations overlap.
+            const claimed = await db.execute(sql`
+                UPDATE ${campaignLeads}
+                SET status = 'SENDING', claimed_at = now()
+                WHERE id IN (
+                    SELECT id FROM ${campaignLeads}
+                    WHERE campaign_id = ${campaign.id}
+                      AND (
+                        status = 'PENDING'
+                        OR (status = 'SENDING' AND (claimed_at IS NULL OR claimed_at < now() - interval '3 minutes'))
+                      )
+                    ORDER BY id
+                    FOR UPDATE SKIP LOCKED
+                    LIMIT ${BATCH_SIZE}
+                )
+                RETURNING id, phone, variables
+            `);
+            const leads = (claimed as unknown as Array<{ id: number; phone: string; variables: any }>);
 
             if (leads.length === 0) {
                 await db.update(campaigns)
@@ -133,7 +131,7 @@ export async function GET(request: Request) {
             if (!allowance.unlimited) {
                 if (allowance.remaining <= 0) {
                     await db.update(campaignLeads)
-                        .set({ status: 'PENDING' })
+                        .set({ status: 'PENDING', claimedAt: null })
                         .where(inArray(campaignLeads.id, leads.map(l => l.id)));
                     await db.update(campaigns)
                         .set({ status: 'PAUSED' })
@@ -145,7 +143,7 @@ export async function GET(request: Request) {
                     batchLeads = leads.slice(0, allowance.remaining);
                     const overflow = leads.slice(allowance.remaining);
                     await db.update(campaignLeads)
-                        .set({ status: 'PENDING' })
+                        .set({ status: 'PENDING', claimedAt: null })
                         .where(inArray(campaignLeads.id, overflow.map(l => l.id)));
                     limitHit = true;
                 }
@@ -154,11 +152,13 @@ export async function GET(request: Request) {
             let sentCount = 0;
             let failedCount = 0;
 
-            for (const lead of batchLeads) {
-                // Stop before the function times out. Any leads we don't reach
-                // stay in SENDING and get picked up by the next self-triggered
-                // invocation, so nothing is lost.
+            let i = 0;
+            for (; i < batchLeads.length; i++) {
+                // Stop before the function times out. Leads we don't reach are
+                // released back to PENDING just below so the next invocation picks
+                // them up immediately (no waiting on the stale window).
                 if (Date.now() - startedAt > TIME_BUDGET_MS) break;
+                const lead = batchLeads[i];
                 try {
                     const dbComponents = campaign.template.components as any[];
 
@@ -339,6 +339,16 @@ export async function GET(request: Request) {
                         .where(eq(campaignLeads.id, lead.id));
                     failedCount++;
                 }
+            }
+
+            // Release any leads we claimed but didn't reach (time budget) so the
+            // next invocation can grab them right away instead of waiting for the
+            // stale window to expire.
+            if (i < batchLeads.length) {
+                const unreached = batchLeads.slice(i);
+                await db.update(campaignLeads)
+                    .set({ status: 'PENDING', claimedAt: null })
+                    .where(inArray(campaignLeads.id, unreached.map(l => l.id)));
             }
 
             await db.update(campaigns).set({
