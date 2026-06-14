@@ -3,17 +3,19 @@
 import React from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
-import { Plus, Megaphone, Calendar, Loader2, Play, Clock, RotateCcw, Trash2 } from 'lucide-react';
+import { Plus, Megaphone, Calendar, Loader2, Play, Clock, RotateCcw, Trash2, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import { CampaignReportDialog } from './CampaignReportDialog';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function CampaignsPage() {
     const t = useTranslations('Campaigns');
     const { data: campaigns, isLoading, mutate } = useSWR('/api/campaigns/list', fetcher);
+    const [report, setReport] = React.useState<{ id: number; name: string } | null>(null);
     const hasProcessing = campaigns?.some((c: any) => c.status === 'PROCESSING');
 
     React.useEffect(() => {
@@ -164,9 +166,14 @@ export default function CampaignsPage() {
                                         <RotateCcw className="h-4 w-4 mr-2" /> Retry Failed
                                     </Button>
                                 )}
-                                    <Button 
-                                        size="sm" 
-                                        variant="destructive" 
+                                {camp.status !== 'DRAFT' && (
+                                    <Button size="sm" variant="outline" onClick={(e) => { e.preventDefault(); setReport({ id: camp.id, name: camp.name }); }}>
+                                        <BarChart3 className="h-4 w-4 mr-2" /> Report
+                                    </Button>
+                                )}
+                                    <Button
+                                        size="sm"
+                                        variant="destructive"
                                         onClick={async (e) => {
                                             e.preventDefault();
                                             try {
@@ -190,6 +197,13 @@ export default function CampaignsPage() {
                     ))}
                 </div>
             )}
+
+            <CampaignReportDialog
+                campaignId={report?.id ?? null}
+                name={report?.name}
+                open={!!report}
+                onOpenChange={(o) => { if (!o) setReport(null); }}
+            />
         </div>
     );
 }
