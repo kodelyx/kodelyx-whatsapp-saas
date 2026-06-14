@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { isPluginInstalled } from '@/lib/plugins/registry';
 import { checkRateLimit, getClientIp, RATE_LIMITS } from '@/lib/rate-limit';
 
@@ -47,11 +47,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
-    // Process in Kodelyx
+    // Process in Kodelyx. Use after() so Vercel keeps the function alive to finish
+    // processing AFTER the 200 response — a bare fire-and-forget promise can be frozen
+    // when the serverless instance is suspended post-response, silently dropping status
+    // updates (Meta gets its 200 and never retries them).
     const { processMetaWebhook } = await import('@/lib/plugins/meta-cloud/webhook-handler');
 
-    processMetaWebhook(entries).catch((e) => {
-      console.error('[Meta Webhook] Processing error:', e);
+    after(async () => {
+      try {
+        await processMetaWebhook(entries);
+      } catch (e) {
+        console.error('[Meta Webhook] Processing error:', e);
+      }
     });
 
     return NextResponse.json({ received: true });

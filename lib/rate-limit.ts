@@ -53,7 +53,10 @@ export const RATE_LIMITS = {
   
   search: { max: 60, windowSec: 60 },
   
-  webhook: { max: 500, windowSec: 60 },
+  // Meta sends delivery-status webhooks in bursts during large campaigns (a 400+
+  // recipient send produces 1000+ status updates). Keep this generous so legitimate
+  // provider traffic is never throttled — abusive floods are still capped.
+  webhook: { max: 5000, windowSec: 60 },
   
   general: { max: 60, windowSec: 60 },
 } as const;
