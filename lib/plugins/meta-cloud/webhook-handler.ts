@@ -1,5 +1,5 @@
 import { db } from '@/lib/db/drizzle';
-import { chats, messages, evolutionInstances, webhookEvents, contacts, autoReplySettings, autoReplyLogs, scheduledFollowups } from '@/lib/db/schema';
+import { chats, messages, evolutionInstances, webhookEvents, contacts, autoReplySettings, autoReplyLogs, scheduledFollowups, messageStatusEvents } from '@/lib/db/schema';
 import { eq, and, sql, desc, lte } from 'drizzle-orm';
 import { pusherServer } from '@/lib/pusher-server';
 import fs from 'fs/promises';
@@ -149,6 +149,22 @@ export async function processMetaWebhook(entries: any[]): Promise<void> {
 
         if (dbStatus && metaMessageId) {
           const pusherEvents: { event: string; data: any }[] = [];
+          const errorMessage = statusUpdate.errors?.[0]?.title || statusUpdate.errors?.[0]?.message || null;
+
+          // Source of truth: append-only delivery-status log. Recorded BEFORE (and
+          // independent of) the messages-row update so a status that arrives before the
+          // send path has written its messages row is never lost. Idempotent via the
+          // unique (message_id, status) constraint.
+          try {
+            await db.insert(messageStatusEvents).values({
+              messageId: metaMessageId,
+              status: dbStatus!,
+              errorTitle: errorMessage,
+              recipientPhone: (statusUpdate.recipient_id as string) ?? null,
+              teamId,
+              eventAt: statusUpdate.timestamp ? new Date(Number(statusUpdate.timestamp) * 1000) : null,
+            }).onConflictDoNothing();
+          } catch (_) { /* logging must never break webhook processing */ }
 
           await db.transaction(async (tx) => {
             const currentMessage = await tx.query.messages.findFirst({
@@ -159,13 +175,11 @@ export async function processMetaWebhook(entries: any[]): Promise<void> {
 
             const currentWeight = getStatusWeight(currentMessage.status);
             const newWeight = getStatusWeight(dbStatus!);
-            
+
             // Allow 'failed' to always override current status
             const isFailure = dbStatus === 'failed';
-            
-            if (newWeight <= currentWeight && !isFailure) return;
 
-            const errorMessage = statusUpdate.errors?.[0]?.title || statusUpdate.errors?.[0]?.message || null;
+            if (newWeight <= currentWeight && !isFailure) return;
 
             await tx.update(messages)
               .set({ 

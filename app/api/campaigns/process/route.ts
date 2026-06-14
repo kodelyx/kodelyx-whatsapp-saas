@@ -1,6 +1,6 @@
 import { NextResponse, after } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { campaigns, campaignLeads, chats, contacts, messages } from '@/lib/db/schema';
+import { campaigns, campaignLeads, chats, contacts, messages, messageStatusEvents } from '@/lib/db/schema';
 import { eq, and, sql, lte, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { buildTemplateComponents } from '@/lib/whatsapp/template-params';
@@ -317,6 +317,26 @@ export async function GET(request: Request) {
                                     timestamp: now,
                                     status: 'sent'
                                 }).onConflictDoNothing();
+
+                                // A delivered/read/failed webhook can arrive before this row
+                                // was written (the webhook drops the messages update but still
+                                // logs to message_status_events). Reconcile the row's status with
+                                // any already-logged events so the chat UI shows correct ticks.
+                                const [logged] = await db
+                                    .select({
+                                        best: sql<string>`CASE
+                                          WHEN bool_or(${messageStatusEvents.status} = 'read') THEN 'read'
+                                          WHEN bool_or(${messageStatusEvents.status} = 'delivered') THEN 'delivered'
+                                          WHEN bool_or(${messageStatusEvents.status} = 'failed') THEN 'failed'
+                                          ELSE 'sent' END`,
+                                    })
+                                    .from(messageStatusEvents)
+                                    .where(eq(messageStatusEvents.messageId, messageId));
+                                if (logged?.best && logged.best !== 'sent') {
+                                    await db.update(messages)
+                                        .set({ status: logged.best })
+                                        .where(eq(messages.id, messageId));
+                                }
                             } catch (contactErr: any) {
                                 console.error('[Campaign Contact Create]', contactErr.message);
                             }

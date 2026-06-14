@@ -50,3 +50,5 @@ postgres_data/
 # Public
 /public/uploads/
 /uploads/
+
+.env.prod

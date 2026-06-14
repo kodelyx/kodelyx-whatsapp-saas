@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { getTeamForUser } from '@/lib/db/queries';
-import { campaigns, campaignLeads, messages } from '@/lib/db/schema';
+import { campaigns, campaignLeads, messageStatusEvents } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
@@ -11,12 +11,13 @@ export const dynamic = 'force-dynamic';
  *
  * Two layers of truth:
  *  - lead level (campaign_leads.status): whether WhatsApp ACCEPTED the send.
- *  - delivery level (messages.status, updated by Meta status webhooks): whether
- *    the message was actually delivered / read / failed downstream. Linked by
- *    the Meta message id (campaign_leads.message_id === messages.id).
+ *  - delivery level (message_status_events log, written by Meta status webhooks):
+ *    whether the message was actually delivered / read / failed downstream. Linked
+ *    by the Meta message id (campaign_leads.message_id === message_status_events.message_id).
  *
- * Delivery data only exists for campaigns sent with createContacts on (those
- * write a messages row); for silent campaigns delivery.available is false.
+ * Reading from the append-only event log (not messages.status) makes this race-proof:
+ * a delivered/read receipt that arrived before the send path wrote its messages row is
+ * still counted. See lib/db/schema.ts messageStatusEvents.
  */
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -47,13 +48,28 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     const sendFailed = lc['FAILED'] ?? 0;                          // rejected at send time
     const queued = (lc['PENDING'] ?? 0) + (lc['SENDING'] ?? 0);    // not sent yet
 
-    // Delivery-level counts (from Meta status webhooks).
+    // Delivery-level counts, derived from the append-only status-event log. Per message,
+    // collapse all logged events to the best status (read > delivered > failed > sent),
+    // then count those per campaign lead.
+    const bestStatus = db
+      .select({
+        messageId: messageStatusEvents.messageId,
+        best: sql<string>`CASE
+          WHEN bool_or(${messageStatusEvents.status} = 'read') THEN 'read'
+          WHEN bool_or(${messageStatusEvents.status} = 'delivered') THEN 'delivered'
+          WHEN bool_or(${messageStatusEvents.status} = 'failed') THEN 'failed'
+          ELSE 'sent' END`.as('best'),
+      })
+      .from(messageStatusEvents)
+      .groupBy(messageStatusEvents.messageId)
+      .as('best_status');
+
     const deliveryRows = await db
-      .select({ status: messages.status, n: sql<number>`count(*)::int` })
+      .select({ status: bestStatus.best, n: sql<number>`count(*)::int` })
       .from(campaignLeads)
-      .innerJoin(messages, eq(messages.id, campaignLeads.messageId))
+      .innerJoin(bestStatus, eq(bestStatus.messageId, campaignLeads.messageId))
       .where(eq(campaignLeads.campaignId, campaignId))
-      .groupBy(messages.status);
+      .groupBy(bestStatus.best);
 
     const dc: Record<string, number> = {};
     for (const r of deliveryRows) dc[r.status ?? 'unknown'] = Number(r.n);

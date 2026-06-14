@@ -57,6 +57,26 @@ export const executionLogs = pgTable('execution_logs', {
   teamCreatedIdx: index('idx_exec_logs_team_created').on(table.teamId, table.createdAt),
 }));
 
+// Append-only log of every WhatsApp delivery-status webhook (sent/delivered/read/failed),
+// keyed by the Meta message id. This is the source of truth for delivery reporting: a
+// status is recorded here even if its `messages` row hasn't been written yet (the send
+// path writes the row a few roundtrips after the lead's message_id is set, so a fast
+// `delivered`/`read` webhook would otherwise be dropped). Reports derive counts from this
+// log, making them race-proof; `messages.status` is a best-effort projection for the chat UI.
+export const messageStatusEvents = pgTable('message_status_events', {
+  id: serial('id').primaryKey(),
+  messageId: text('message_id').notNull(),             // Meta message id (= messages.id)
+  status: varchar('status', { length: 20 }).notNull(), // sent | delivered | read | failed
+  errorTitle: text('error_title'),
+  recipientPhone: varchar('recipient_phone', { length: 50 }),
+  teamId: integer('team_id'),
+  eventAt: timestamp('event_at', { withTimezone: true }), // Meta status timestamp
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  messageIdx: index('idx_msg_status_events_message').on(table.messageId),
+  uniqStatus: unique('uniq_msg_status_per_message').on(table.messageId, table.status),
+}));
+
 export const channelConfigs = pgTable('channel_configs', {
   id: serial('id').primaryKey(),
   channel: varchar('channel', { length: 30 }).notNull().unique(), 
