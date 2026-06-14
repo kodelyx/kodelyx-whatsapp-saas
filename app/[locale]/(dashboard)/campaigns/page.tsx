@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
-import { Plus, Megaphone, Calendar, Loader2, Play, Clock, RotateCcw, Trash2, BarChart3 } from 'lucide-react';
+import { Plus, Megaphone, Calendar, Loader2, Play, Clock, RotateCcw, Trash2, BarChart3, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -127,7 +127,7 @@ export default function CampaignsPage() {
                 <div className="grid gap-4">
                     {campaigns?.map((camp: any) => (
                         <div key={camp.id} className="bg-background p-6 rounded-xl border border-border flex justify-between items-center">
-                             <Link key={camp.id} href={`/campaigns/${camp.id}`} className="block">
+                             <div>
                             <div>
                                 <div className="flex items-center gap-3 mb-1">
                                     <h3 className="font-semibold text-foreground">{camp.name}</h3>
@@ -143,8 +143,13 @@ export default function CampaignsPage() {
                                     <span className="text-destructive">{t('stats_failed', {count: camp.failedCount})}</span>
                                 </div>
                             </div>
-                            </Link>
+                            </div>
                                 <div className="flex gap-2 items-center">
+                                <Link href={`/campaigns/${camp.id}`}>
+                                    <Button size="sm" variant="outline">
+                                        <Eye className="h-4 w-4 mr-2" /> View
+                                    </Button>
+                                </Link>
                                 {camp.status === 'DRAFT' && (
                                     <Button size="sm" onClick={() => handleStart(camp.id)}>
                                         <Play className="h-4 w-4 mr-2" /> {t('start_btn')}
