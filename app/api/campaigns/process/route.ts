@@ -1,13 +1,37 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { campaigns, campaignLeads, chats, contacts, messages } from '@/lib/db/schema';
 import { eq, and, sql, lte, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { buildTemplateComponents } from '@/lib/whatsapp/template-params';
 
-const BATCH_SIZE = 50;
+// Allow this function up to 60s (the max on Vercel Hobby). We stop sending
+// before TIME_BUDGET_MS and hand the remaining leads to the next invocation.
+export const maxDuration = 60;
+
+const BATCH_SIZE = 100;            // max leads pulled from the DB per invocation
 const DELAY_BETWEEN_SENDS_MS = 200;
+const TIME_BUDGET_MS = 45000;     // stop sending past this point, then self-retrigger
 const CRON_SECRET = process.env.CRON_SECRET;
+
+function triggerNextBatch() {
+    // Vercel Hobby has no per-minute cron, so a campaign drives itself forward
+    // by chaining one batch to the next. after() guarantees this runs even
+    // though the handler has already returned its response. The short abort is
+    // enough to deliver the request (which spawns a fresh invocation) without
+    // blocking on the whole chain completing.
+    after(async () => {
+        const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        try {
+            await fetch(`${baseUrl}/api/campaigns/process`, {
+                headers: CRON_SECRET ? { 'Authorization': `Bearer ${CRON_SECRET}` } : {},
+                signal: AbortSignal.timeout(5000),
+            });
+        } catch {
+            // A timeout/abort here is expected — the next invocation has already started.
+        }
+    });
+}
 
 export async function GET(request: Request) {
     const authHeader = request.headers.get('authorization');
@@ -35,6 +59,8 @@ export async function GET(request: Request) {
         }
 
         const results = [];
+        const startedAt = Date.now();
+        let anyRemaining = false;
 
         for (const campaign of activeCampaigns) {
             if (!campaign.template || !campaign.instance) {
@@ -59,15 +85,17 @@ export async function GET(request: Request) {
                     .where(inArray(campaignLeads.id, pendingLeads.map(l => l.id)));
             }
 
-            const leads = pendingLeads.length > 0
-                ? await db.query.campaignLeads.findMany({
-                    where: and(
-                        eq(campaignLeads.campaignId, campaign.id),
-                        eq(campaignLeads.status, 'SENDING')
-                    ),
-                    limit: BATCH_SIZE
-                })
-                : [];
+            // Always pull SENDING leads — this includes the batch we just promoted
+            // AND any leads a previous invocation left stuck in SENDING because it
+            // was killed mid-flight (Vercel timeout). Without this, a campaign whose
+            // only remaining leads were stuck in SENDING would be wrongly COMPLETED.
+            const leads = await db.query.campaignLeads.findMany({
+                where: and(
+                    eq(campaignLeads.campaignId, campaign.id),
+                    eq(campaignLeads.status, 'SENDING')
+                ),
+                limit: BATCH_SIZE
+            });
 
             if (leads.length === 0) {
                 await db.update(campaigns)
@@ -81,6 +109,10 @@ export async function GET(request: Request) {
             let failedCount = 0;
 
             for (const lead of leads) {
+                // Stop before the function times out. Any leads we don't reach
+                // stay in SENDING and get picked up by the next self-triggered
+                // invocation, so nothing is lost.
+                if (Date.now() - startedAt > TIME_BUDGET_MS) break;
                 try {
                     const dbComponents = campaign.template.components as any[];
 
@@ -279,6 +311,8 @@ export async function GET(request: Request) {
                 await db.update(campaigns)
                     .set({ status: 'COMPLETED' })
                     .where(eq(campaigns.id, campaign.id));
+            } else {
+                anyRemaining = true;
             }
 
             results.push({
@@ -290,7 +324,14 @@ export async function GET(request: Request) {
             });
         }
 
-        return NextResponse.json({ success: true, results });
+        // If any campaign still has PENDING/SENDING leads, kick off the next
+        // batch. This is what carries a large campaign past the first 50 — the
+        // chain continues until every lead is sent.
+        if (anyRemaining) {
+            triggerNextBatch();
+        }
+
+        return NextResponse.json({ success: true, results, anyRemaining });
 
     } catch (error: any) {
         console.error('[Campaign Process]', error);
